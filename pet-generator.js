@@ -34,9 +34,9 @@ const PetGenerator = ({ onPetCreated }) => {
   };
 
   return (
-    <div>
+    <div className="generator-container">
       <h2>Pet Generator</h2>
-      <div>
+      <div className="control-group">
         <label>Body Color:</label>
         <input 
           type="color" 
@@ -45,7 +45,7 @@ const PetGenerator = ({ onPetCreated }) => {
           onChange={(e) => setPetConfig({...petConfig, bodyColor: e.target.value})}
         />
       </div>
-      <div>
+      <div className="control-group">
         <label>Body Size:</label>
         <input 
           type="range" 
@@ -57,7 +57,7 @@ const PetGenerator = ({ onPetCreated }) => {
           onChange={(e) => setPetConfig({...petConfig, bodySize: parseFloat(e.target.value)})}
         />
       </div>
-      <div>
+      <div className="control-group">
         <label>Head Size:</label>
         <input 
           type="range" 
@@ -69,7 +69,7 @@ const PetGenerator = ({ onPetCreated }) => {
           onChange={(e) => setPetConfig({...petConfig, headSize: parseFloat(e.target.value)})}
         />
       </div>
-      <div>
+      <div className="control-group">
         <label>Leg Length:</label>
         <input 
           type="range" 
@@ -81,7 +81,7 @@ const PetGenerator = ({ onPetCreated }) => {
           onChange={(e) => setPetConfig({...petConfig, legLength: parseFloat(e.target.value)})}
         />
       </div>
-      <div>
+      <div className="control-group">
         <label>Tail Length:</label>
         <input 
           type="range" 
@@ -93,7 +93,9 @@ const PetGenerator = ({ onPetCreated }) => {
           onChange={(e) => setPetConfig({...petConfig, tailLength: parseFloat(e.target.value)})}
         />
       </div>
-      <button onClick={() => setPetConfig(generateRandomPet())}>Randomize</button>
+      <button className="randomize-btn" onClick={() => setPetConfig(generateRandomPet())}>
+        Randomize
+      </button>
       <button onClick={handleCreatePet}>Create Pet</button>
     </div>
   );

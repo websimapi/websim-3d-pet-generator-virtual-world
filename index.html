@@ -2,38 +2,12 @@
 <head>
   <title>3D Pet Generator & Virtual World</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://unpkg.com/three-pathfinding@0.13.0/dist/three-pathfinding.umd.js"></script>
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style>
-    body { margin: 0; }
-    canvas { display: block; }
-    #ui-container {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      color: white;
-      font-family: Arial, sans-serif;
-      background: rgba(0,0,0,0.7);
-      padding: 10px;
-      border-radius: 5px;
-    }
-    .color-picker {
-      margin: 5px 0;
-    }
-    .slider {
-      margin: 5px 0;
-      width: 200px;
-    }
-    button {
-      margin: 5px;
-      padding: 5px 10px;
-      cursor: pointer;
-    }
-    .pet-list {
-      margin-top: 10px;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="ui-container"></div>
