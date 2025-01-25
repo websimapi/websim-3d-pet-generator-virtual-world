@@ -25,7 +25,6 @@ class PetWorld {
     
     // Pathfinding setup
     this.pathfinder = new THREE.Pathfinding();
-    this.navmesh = this.pathfinder.setZoneData('world', this.buildNavMesh());
     
     window.addEventListener('resize', () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -155,30 +154,53 @@ class PetWorld {
   }
 
   setupNavMesh() {
-    // Create navigation mesh for pathfinding
-    const navGeometry = new THREE.PlaneGeometry(50, 50, 20, 20);
-    const vertices = navGeometry.attributes.position.array;
-    for (let i = 0; i < vertices.length; i += 3) {
-      const x = vertices[i];
-      const z = vertices[i + 2];
-      vertices[i + 1] = this.getHeightAt(x, z);
+    // Create a simplified navigation mesh for pathfinding
+    const geometry = new THREE.PlaneGeometry(50, 50, 10, 10);
+    const position = geometry.attributes.position;
+    
+    // Apply height to vertices
+    for (let i = 0; i < position.count; i++) {
+      const x = position.getX(i);
+      const z = position.getZ(i);
+      position.setY(i, this.getHeightAt(x, z));
     }
-    navGeometry.computeVertexNormals();
-    this.navMeshGeometry = navGeometry;
-  }
-
-  buildNavMesh() {
-    return THREE.Pathfinding.createZone(this.navMeshGeometry);
+    
+    geometry.computeVertexNormals();
+    
+    // Create the zone
+    const zone = THREE.Pathfinding.createZone(geometry);
+    this.pathfinder.setZoneData('world', zone);
+    
+    // Debug visualization of navmesh (optional)
+    const material = new THREE.MeshBasicMaterial({
+      color: 0x0000ff,
+      wireframe: true,
+      opacity: 0.1,
+      transparent: true
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.x = -Math.PI / 2;
+    this.scene.add(mesh);
   }
 
   findPath(start, end) {
-    const path = this.pathfinder.findPath(
-      new THREE.Vector3(start.x, start.y, start.z),
-      new THREE.Vector3(end.x, end.y, end.z),
-      'world',
-      this.navMeshGeometry
-    );
-    return path || [];
+    try {
+      // Ensure proper Vector3 objects
+      const startVec = new THREE.Vector3(start.x, this.getHeightAt(start.x, start.z), start.z);
+      const endVec = new THREE.Vector3(end.x, this.getHeightAt(end.x, end.z), end.z);
+      
+      // Get closest valid points on navmesh
+      const startPos = this.pathfinder.getClosestNode(startVec, 'world');
+      const endPos = this.pathfinder.getClosestNode(endVec, 'world');
+      
+      if (!startPos || !endPos) return null;
+      
+      // Find path
+      return this.pathfinder.findPath(startPos, endPos, 'world');
+    } catch (error) {
+      console.warn('Pathfinding error:', error);
+      return null;
+    }
   }
 
   createPetMesh(config) {
@@ -246,47 +268,71 @@ class PetWorld {
     
     this.controls.update();
     
-    // Animate pets with pathfinding
+    // Animate pets with improved pathfinding
     this.pets.forEach((pet) => {
       const time = Date.now() * 0.001;
       
-      // Generate new target position every few seconds
-      if (time % 5 < 0.1) {
-        const targetX = (Math.random() - 0.5) * 40;
-        const targetZ = (Math.random() - 0.5) * 40;
-        const targetY = this.getHeightAt(targetX, targetZ);
+      // Generate new target position less frequently and with bounds checking
+      if (!pet.targetPosition || time % 10 < 0.1) {
+        const attempts = 5;
+        let validPath = false;
         
-        pet.targetPosition = new THREE.Vector3(targetX, targetY, targetZ);
-        pet.path = this.findPath(pet.mesh.position, pet.targetPosition);
-        pet.pathIndex = 0;
+        for (let i = 0; i < attempts && !validPath; i++) {
+          const targetX = Math.max(-20, Math.min(20, (Math.random() - 0.5) * 40));
+          const targetZ = Math.max(-20, Math.min(20, (Math.random() - 0.5) * 40));
+          const targetY = this.getHeightAt(targetX, targetZ);
+          
+          const newTarget = new THREE.Vector3(targetX, targetY, targetZ);
+          const path = this.findPath(pet.mesh.position, newTarget);
+          
+          if (path && path.length > 0) {
+            pet.targetPosition = newTarget;
+            pet.path = path;
+            pet.pathIndex = 0;
+            validPath = true;
+          }
+        }
       }
 
-      // Move along path
+      // Move along path with smooth transitions
       if (pet.path && pet.path.length > 0 && pet.pathIndex < pet.path.length) {
         const target = pet.path[pet.pathIndex];
         const direction = new THREE.Vector3()
           .subVectors(target, pet.mesh.position)
           .normalize();
         
-        // Move towards target
-        pet.mesh.position.add(direction.multiplyScalar(0.1));
+        // Smooth movement speed
+        const speed = 0.05;
+        pet.mesh.position.add(direction.multiplyScalar(speed));
         
-        // Rotate to face movement direction
-        pet.mesh.lookAt(target);
+        // Smooth rotation
+        const targetRotation = Math.atan2(direction.x, direction.z);
+        const currentRotation = pet.mesh.rotation.y;
+        let rotationDiff = targetRotation - currentRotation;
+        
+        // Normalize rotation difference
+        if (rotationDiff > Math.PI) rotationDiff -= Math.PI * 2;
+        if (rotationDiff < -Math.PI) rotationDiff += Math.PI * 2;
+        
+        // Apply smooth rotation
+        pet.mesh.rotation.y += rotationDiff * 0.1;
         
         // Check if reached current waypoint
-        if (pet.mesh.position.distanceTo(target) < 0.1) {
+        if (pet.mesh.position.distanceTo(target) < 0.2) {
           pet.pathIndex++;
         }
+        
+        // Update Y position based on terrain
+        pet.mesh.position.y = this.getHeightAt(pet.mesh.position.x, pet.mesh.position.z) + 0.5;
+        
+        // Broadcast position update
+        room.send({
+          type: 'petMove',
+          petId: pet.data.id,
+          position: pet.mesh.position.clone(),
+          rotation: pet.mesh.rotation.clone()
+        });
       }
-
-      // Broadcast position update
-      room.send({
-        type: 'petMove',
-        petId: pet.data.id,
-        position: pet.mesh.position,
-        rotation: pet.mesh.rotation
-      });
     });
 
     this.renderer.render(this.scene, this.camera);
